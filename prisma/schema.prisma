@@ -1,0 +1,216 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum UserRole {
+  ADMIN
+  TECHNICIAN
+  CLIENT
+}
+
+enum ServiceStatus {
+  STARTED
+  IN_PROGRESS
+  FINISHED
+}
+
+enum BaitStationAction {
+  INSPECTION
+  REPLACEMENT
+  REFILL
+  CLEANING
+}
+
+model User {
+  id       String   @id @default(uuid())
+  name     String
+  email    String   @unique
+  password String
+  role     UserRole
+
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id])
+
+  services Service[] @relation("TechnicianServices")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Client {
+  id       String  @id @default(uuid())
+  name     String
+  document String?
+  phone    String?
+  email    String?
+  address  String?
+
+  users       User[]
+  departments Department[]
+  services    Service[]
+  budgets     Budget[]
+  documents   Document[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Department {
+  id          String  @id @default(uuid())
+  name        String
+  description String?
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
+
+  baitStations BaitStation[]
+  services     Service[]
+
+  createdAt DateTime @default(now())
+}
+
+model BaitStation {
+  id       String  @id @default(uuid())
+  code     String
+  location String?
+
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id])
+
+  histories    BaitStationHistory[]
+  serviceLinks ServiceBaitStation[]
+
+  createdAt DateTime @default(now())
+
+  @@unique([code, departmentId])
+}
+
+model Service {
+  id          String        @id @default(uuid())
+  description String?
+  status      ServiceStatus @default(STARTED)
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
+
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id])
+
+  technicianId String
+  technician   User   @relation("TechnicianServices", fields: [technicianId], references: [id])
+
+  baitStations ServiceBaitStation[]
+  photos       ServicePhoto[]
+  report       Report?
+
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+
+  createdAt            DateTime             @default(now())
+  baitStationHistories BaitStationHistory[]
+}
+
+model ServiceBaitStation {
+  id String @id @default(uuid())
+
+  serviceId String
+  service   Service @relation(fields: [serviceId], references: [id])
+
+  baitStationId String
+  baitStation   BaitStation @relation(fields: [baitStationId], references: [id])
+
+  action      BaitStationAction
+  observation String?
+
+  history BaitStationHistory? @relation(fields: [baitStationHistoryId], references: [id])
+
+  createdAt            DateTime @default(now())
+  baitStationHistoryId String?
+}
+
+model BaitStationHistory {
+  id String @id @default(uuid())
+
+  baitStationId String
+  baitStation   BaitStation @relation(fields: [baitStationId], references: [id])
+
+  serviceId String
+  service   Service @relation(fields: [serviceId], references: [id])
+
+  action BaitStationAction
+  notes  String?
+
+  createdAt           DateTime             @default(now())
+  serviceBaitStations ServiceBaitStation[]
+}
+
+model ServicePhoto {
+  id String @id @default(uuid())
+
+  serviceId String
+  service   Service @relation(fields: [serviceId], references: [id])
+
+  url     String
+  caption String?
+
+  createdAt DateTime @default(now())
+}
+
+model Report {
+  id String @id @default(uuid())
+
+  serviceId String  @unique
+  service   Service @relation(fields: [serviceId], references: [id])
+
+  fileUrl String
+  summary String?
+
+  createdAt DateTime @default(now())
+}
+
+model Budget {
+  id String @id @default(uuid())
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
+
+  title  String
+  status String
+  total  Decimal
+
+  items BudgetItem[]
+
+  createdAt DateTime @default(now())
+}
+
+model BudgetItem {
+  id String @id @default(uuid())
+
+  budgetId String
+  budget   Budget @relation(fields: [budgetId], references: [id])
+
+  description String
+  quantity    Int
+  price       Decimal
+}
+
+model Document {
+  id String @id @default(uuid())
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
+
+  title   String
+  fileUrl String
+  type    String
+
+  createdAt DateTime @default(now())
+}
